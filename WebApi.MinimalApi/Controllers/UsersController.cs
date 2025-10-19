@@ -53,4 +53,36 @@ public class UsersController : Controller
             new { userId = createdUserEntity.Id },
             createdUserEntity.Id);
     }
+    
+    [HttpPut("{userId}")]
+    [Produces("application/json", "application/xml")]
+    public IActionResult UpdateUser([FromRoute] string userId, [FromBody] UserUpdateDto user)
+    {
+        if (!Guid.TryParse(userId, out var id))
+            return BadRequest();
+        if (user == null)
+            return BadRequest();
+        if (!TryValidateModel(user))
+            return UnprocessableEntity(ModelState);
+        if (string.IsNullOrEmpty(user.FirstName))
+        {
+            ModelState.AddModelError("firstName", "FirstName is required");
+            return UnprocessableEntity(ModelState);
+        }
+        if (string.IsNullOrEmpty(user.LastName))
+        {
+            ModelState.AddModelError("lastName", "LastName is required");
+            return UnprocessableEntity(ModelState);
+        }
+        var entity = new UserEntity(id)
+        {
+            Login = user.Login,
+            FirstName = user.FirstName,
+            LastName = user.LastName
+        };
+        userRepository.UpdateOrInsert(entity, out var isInserted);
+        if (isInserted)
+            return CreatedAtRoute(nameof(GetUserById), new { userId = entity.Id }, entity.Id);
+        return NoContent();
+    }
 }

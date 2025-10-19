@@ -58,12 +58,12 @@ public class UsersController : Controller
     [Produces("application/json", "application/xml")]
     public IActionResult UpdateUser([FromRoute] string userId, [FromBody] UserUpdateDto user)
     {
-        if (!Guid.TryParse(userId, out var id))
+        if (!Guid.TryParse(userId, out var id) || user is null)
             return BadRequest();
-        if (user == null)
-            return BadRequest();
+
         if (!TryValidateModel(user))
             return UnprocessableEntity(ModelState);
+       
         if (string.IsNullOrEmpty(user.FirstName))
         {
             ModelState.AddModelError("firstName", "FirstName is required");
@@ -74,15 +74,17 @@ public class UsersController : Controller
             ModelState.AddModelError("lastName", "LastName is required");
             return UnprocessableEntity(ModelState);
         }
+        
         var entity = new UserEntity(id)
         {
             Login = user.Login,
             FirstName = user.FirstName,
-            LastName = user.LastName
+            LastName = user.LastName,
         };
+        
         userRepository.UpdateOrInsert(entity, out var isInserted);
-        if (isInserted)
-            return CreatedAtRoute(nameof(GetUserById), new { userId = entity.Id }, entity.Id);
-        return NoContent();
+        return isInserted 
+            ? CreatedAtRoute(nameof(GetUserById), new { userId = entity.Id }, entity.Id) 
+            : NoContent();
     }
 }

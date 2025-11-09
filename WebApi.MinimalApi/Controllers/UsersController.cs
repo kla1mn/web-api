@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using WebApi.MinimalApi.Domain;
 using WebApi.MinimalApi.Models;
@@ -87,4 +88,57 @@ public class UsersController : Controller
             ? CreatedAtRoute(nameof(GetUserById), new { userId = entity.Id }, entity.Id) 
             : NoContent();
     }
+    
+    [HttpPatch("{userId}", Name = nameof(PartiallyUpdateUser))]
+    [Produces("application/json", "application/xml")]
+    public IActionResult PartiallyUpdateUser([FromRoute] Guid userId, [FromBody] JsonPatchDocument<UserPatchDto>? patchDoc)
+    {
+        if (patchDoc is null)
+            return BadRequest();
+        if (userId == Guid.Empty)
+            return NotFound();
+
+        var userEntity = userRepository.FindById(userId);
+        if (userEntity is null)
+            return NotFound();
+
+        var userPatch = new UserPatchDto
+        {
+            Login = userEntity.Login,
+            FirstName = userEntity.FirstName,
+            LastName = userEntity.LastName
+        };
+
+        patchDoc.ApplyTo(userPatch, ModelState);
+
+        if (string.IsNullOrEmpty(userPatch.Login))
+            ModelState.AddModelError("Login", "Login is required");
+        else if (!userPatch.Login.All(char.IsLetterOrDigit))
+            ModelState.AddModelError("Login", "Login must contain digits and letters");
+
+        if (string.IsNullOrEmpty(userPatch.FirstName))
+        {
+            ModelState.AddModelError("firstName", "FirstName is required");
+            return UnprocessableEntity(ModelState);
+        }
+        if (string.IsNullOrEmpty(userPatch.LastName))
+        {
+            ModelState.AddModelError("lastName", "LastName is required");
+            return UnprocessableEntity(ModelState);
+        }
+
+        if (!ModelState.IsValid)
+            return UnprocessableEntity(ModelState);
+
+        if (userPatch.Login != null)
+            userEntity.Login = userPatch.Login;
+        if (userPatch.FirstName != null)
+            userEntity.FirstName = userPatch.FirstName;
+        if (userPatch.LastName != null)
+            userEntity.LastName = userPatch.LastName;
+
+        userRepository.Update(userEntity);
+        return NoContent();
+    }
+
 }

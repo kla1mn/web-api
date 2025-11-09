@@ -89,7 +89,7 @@ public class UsersController : Controller
             : NoContent();
     }
     
-    [HttpPatch("{userId}", Name = nameof(PartiallyUpdateUser))]
+    [HttpPatch("{userId:guid}", Name = nameof(PartiallyUpdateUser))]
     [Produces("application/json", "application/xml")]
     public IActionResult PartiallyUpdateUser([FromRoute] Guid userId, [FromBody] JsonPatchDocument<UserPatchDto>? patchDoc)
     {
@@ -141,4 +141,17 @@ public class UsersController : Controller
         return NoContent();
     }
 
+    [HttpDelete("{userId:guid}", Name = nameof(DeleteUser))]
+    public IActionResult DeleteUser([FromRoute] Guid userId)
+    {
+        if (userId == Guid.Empty)
+            return NotFound();
+        
+        var userEntity = userRepository.FindById(userId);
+        if (userEntity is null)
+            return NotFound();
+        
+        userRepository.Delete(userId);
+        return NoContent();
+    }
 }

@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
 using WebApi.MinimalApi.Domain;
 using WebApi.MinimalApi.Models;
 
@@ -67,7 +68,7 @@ public class UsersController : Controller
     
     [HttpPut("{userId}")]
     [Produces("application/json", "application/xml")]
-    public IActionResult UpdateUser([FromRoute] string userId, [FromBody] UserUpdateDto user)
+    public IActionResult UpdateUser([FromRoute] string userId, [FromBody] UserUpdateDto? user)
     {
         if (!Guid.TryParse(userId, out var id) || user is null)
             return BadRequest();
@@ -163,5 +164,37 @@ public class UsersController : Controller
         
         userRepository.Delete(userId);
         return NoContent();
+    }
+    
+    [HttpGet(Name = nameof(GetUsers))]
+    [Produces("application/json", "application/xml")]
+    public ActionResult<IEnumerable<UserDto>> GetUsers([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+    {
+        pageNumber = Math.Max(1, pageNumber);
+        pageSize = Math.Clamp(pageSize, 1, 20);
+
+        var pageList = userRepository.GetPage(pageNumber, pageSize);
+
+        string? previousPageLink = null;
+        string? nextPageLink = null;
+
+        if (pageList.HasPrevious)
+            previousPageLink = Url.RouteUrl(nameof(GetUsers), new { pageNumber = pageNumber - 1, pageSize }, Request.Scheme);
+        if (pageList.HasNext)
+            nextPageLink = Url.RouteUrl(nameof(GetUsers), new { pageNumber = pageNumber + 1, pageSize }, Request.Scheme);
+
+        var paginationHeader = new
+        {
+            previousPageLink,
+            nextPageLink,
+            totalCount = pageList.TotalCount,
+            pageSize = pageList.PageSize,
+            currentPage = pageList.CurrentPage,
+            totalPages = pageList.TotalPages
+        };
+        Response.Headers.Append("X-Pagination", JsonConvert.SerializeObject(paginationHeader));
+
+        var users = mapper.Map<IEnumerable<UserDto>>(pageList);
+        return Ok(users);
     }
 }

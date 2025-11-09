@@ -190,11 +190,25 @@ public class UsersController : Controller
             totalCount = pageList.TotalCount,
             pageSize = pageList.PageSize,
             currentPage = pageList.CurrentPage,
-            totalPages = pageList.TotalPages
+            totalPages = pageList.TotalPages,
         };
         Response.Headers.Append("X-Pagination", JsonConvert.SerializeObject(paginationHeader));
 
         var users = mapper.Map<IEnumerable<UserDto>>(pageList);
         return Ok(users);
+    }
+    
+    [HttpOptions(Name = nameof(GetUsersOptions))]
+    public IActionResult GetUsersOptions()
+    {
+        var allowedMethods = new List<string>
+        {
+            HttpMethods.Get,
+            HttpMethods.Post,
+            HttpMethods.Options,
+        };
+
+        Response.Headers.Append("Allow", string.Join(", ", allowedMethods));
+        return Ok();
     }
 }
